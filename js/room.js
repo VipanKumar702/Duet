@@ -106,8 +106,15 @@
     if (video.srcObject === stream) return;
     video.srcObject = stream;
     if (stream) {
-      video.play().catch(() => {
-        const retry = () => { video.play().catch(() => {}); document.removeEventListener('pointerdown', retry); };
+      video.muted = true;
+      video.play().then(() => {
+        video.muted = (video.id === 'localCam');
+      }).catch(() => {
+        const retry = () => {
+          video.muted = true;
+          video.play().then(() => { video.muted = (video.id === 'localCam'); }).catch(() => {});
+          document.removeEventListener('pointerdown', retry);
+        };
         document.addEventListener('pointerdown', retry, { once: true });
       });
     }
@@ -154,7 +161,13 @@
     if (o.action) els.ovAction.textContent = o.action;
     els.overlay.classList.add('show');
   }
-  function hideOverlay() { els.overlay.classList.remove('show'); }
+  function hideOverlay() {
+    els.overlay.classList.remove('show');
+    setTimeout(() => {
+      try { els.remoteCam.play().catch(() => {}); } catch (e) { /* ignore */ }
+      try { els.shareView.play().catch(() => {}); } catch (e) { /* ignore */ }
+    }, 400);
+  }
 
   /* ===================================================== */
   /*  Codec preference (VP9 → H.264 fallback)              */
@@ -245,23 +258,44 @@
   }
 
   async function initLocalMedia() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      log('getUserMedia not supported');
+      confirmStart();
+      return;
+    }
     try {
+      log('requesting camera…');
       const stream = await captureCamera();
+      log('camera OK', stream.getVideoTracks().length, 'video', stream.getAudioTracks().length, 'audio');
       state.localStream = stream;
       const hasVid = stream.getVideoTracks().length > 0;
       const hasAud = stream.getAudioTracks().length > 0;
       state.camOn = hasVid;
       state.micOn = hasAud;
-      if (hasVid) { attachVideo(els.localCam, stream); els.localOff.classList.add('hidden'); }
+      if (hasVid) {
+        els.localCam.muted = true;
+        els.localCam.srcObject = stream;
+        els.localCam.play().then(() => { els.localCam.muted = true; }).catch(e => log('local play fail', e));
+        els.localOff.classList.add('hidden');
+      }
       if (hasAud) els.micBtn.classList.remove('off');
       if (hasVid) els.camBtn.classList.remove('off');
+      if (IS_HOST && !state.dataReady) {
+        setTimeout(() => { if (!state.dataReady) hideOverlay(); }, 3000);
+      }
       confirmStart();
     } catch (e) {
-      log('local media failed', e);
+      log('local media failed', e.name, e.message);
+      state.camOn = false;
+      state.micOn = false;
       els.localOff.classList.remove('hidden');
       els.localName.textContent = state.name;
-      toast('Camera / mic unavailable — party continues with their video');
+      els.camBtn.classList.add('off');
+      els.micBtn.classList.add('off');
+      toast('Camera / mic unavailable — ' + (e.message || e.name || 'unknown error'));
+      if (IS_HOST && !state.dataReady) {
+        setTimeout(() => { if (!state.dataReady) hideOverlay(); }, 3000);
+      }
       confirmStart();
     }
   }
@@ -348,8 +382,18 @@
       call.answer();
       call.on('stream', s => {
         state.remoteScreenStream = s;
-        attachVideo(els.shareView, s);
+        els.shareView.muted = true;
+        els.shareView.srcObject = s;
         els.shareView.volume = state.remoteVolume;
+        els.shareView.play().then(() => { els.shareView.muted = true; els.shareView.volume = state.remoteVolume; }).catch(e => {
+          log('share play fail', e);
+          const r = () => {
+            els.shareView.muted = true;
+            els.shareView.play().then(() => { els.shareView.muted = true; }).catch(() => {});
+            document.removeEventListener('pointerdown', r);
+          };
+          document.addEventListener('pointerdown', r, { once: true });
+        });
         s.getAudioTracks().forEach(t => { t.enabled = state.hearSysAudio; });
         els.shareView.style.display = 'block';
         els.shareTag.style.display = 'flex';
@@ -385,8 +429,17 @@
   function wireMediaCall(call, kind) {
     call.on('stream', s => {
       state.remoteCamStream = s;
-      attachVideo(els.remoteCam, s);
-      els.remoteCam.volume = state.remoteVolume;
+      els.remoteCam.muted = true;
+      els.remoteCam.srcObject = s;
+      els.remoteCam.play().then(() => { els.remoteCam.muted = true; }).catch(e => {
+        log('remote play fail, retrying on click', e);
+        const r = () => {
+          els.remoteCam.muted = true;
+          els.remoteCam.play().then(() => { els.remoteCam.muted = true; }).catch(() => {});
+          document.removeEventListener('pointerdown', r);
+        };
+        document.addEventListener('pointerdown', r, { once: true });
+      });
       els.remoteOff.classList.add('hidden');
       refreshStatusFromTracks(s);
       updateLayout();
@@ -1041,8 +1094,23 @@
       }
     });
 
+    els.overlay.addEventListener('click', e => {
+      if (e.target === els.overlay || e.target.closest('.overlay-card')) {
+        if (els.overlay.classList.contains('show')) {
+          if (!state.dataReady) {
+            toast('Waiting for partner…');
+          }
+        }
+      }
+    });
+
     const autoplayUnlock = () => {
-      [els.remoteCam, els.shareView].forEach(v => { if (v.srcObject) v.play().catch(() => {}); });
+      [els.remoteCam, els.shareView, els.localCam].forEach(v => {
+        if (v && v.srcObject) {
+          v.muted = true;
+          v.play().then(() => { v.muted = (v.id === 'localCam'); }).catch(() => {});
+        }
+      });
     };
     document.addEventListener('pointerdown', autoplayUnlock, { once: false });
 
@@ -1230,11 +1298,31 @@
       showOverlay({ title: 'Connecting to vault…', sub: 'Contacting room ' + ROOM + ' over the signaling broker.' });
     }
 
+    els.localCam.volume = 0;
+    els.remoteCam.volume = state.remoteVolume;
+    els.shareView.volume = state.remoteVolume;
+
     initLocalMedia();
     initPeer();
 
     setInterval(collectStats, 4000);
     setInterval(sendPing, 10000);
+
+    setInterval(() => {
+      [els.remoteCam, els.localCam, els.shareView].forEach(v => {
+        if (v && v.srcObject && v.paused) {
+          v.muted = true;
+          v.play().then(() => { v.muted = (v.id === 'localCam'); }).catch(() => {});
+        }
+      });
+    }, 3000);
+
+    setTimeout(() => {
+      if (els.overlay.classList.contains('show') && !state.dataReady) {
+        hideOverlay();
+        toast('Overlay dismissed — waiting for partner in background');
+      }
+    }, 12000);
   }
 
   init();
