@@ -605,6 +605,58 @@ body.room #app { width: 100%; height: 100%; position: relative; }
 span.field-note { font-size: 0.72rem; color: var(--faint); margin-top: -10px; }
 
 /* Responsive */
+/* Top bar hide/show */
+.topbar.hide-mode {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+.topbar.show-mode {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+#hideBarBtn { transition: transform 0.3s ease; }
+#hideBarBtn.collapsed { transform: rotate(180deg); }
+
+/* PiP resize handle */
+.pip-resize-handle {
+  position: absolute; bottom: 0; right: 0; width: 18px; height: 18px;
+  cursor: nwse-resize; z-index: 2;
+  background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.35) 50%);
+  border-radius: 0 0 var(--r-sm) 0;
+  opacity: 0; transition: opacity 0.2s;
+}
+.pip:hover .pip-resize-handle { opacity: 1; }
+
+/* PiP draggable cursor */
+.pip.dragging { cursor: grabbing !important; }
+.pip:not(.dragging) { cursor: grab; }
+
+/* Remote audio volume slider */
+.vol-wrap {
+  position: absolute; bottom: 48px; left: 50%; transform: translateX(-50%); z-index: 25;
+  display: none; align-items: center; gap: 8px;
+  background: rgba(0, 0, 0, 0.65); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px; padding: 6px 14px; backdrop-filter: blur(10px);
+}
+.vol-wrap.show { display: flex; }
+.vol-wrap .lucide { width: 18px; height: 18px; color: var(--muted); }
+.vol-wrap input[type="range"] {
+  width: 100px; height: 4px; -webkit-appearance: none; appearance: none;
+  background: var(--border2); border-radius: 2px; outline: none; cursor: pointer;
+}
+.vol-wrap input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--text); border: 2px solid var(--acc2); cursor: pointer;
+}
+.vol-wrap input[type="range"]::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--text); border: 2px solid var(--acc2); cursor: pointer;
+}
+
 @media (max-width: 760px) {
   .pip { width: 116px; right: 8px; bottom: calc(var(--ctrl-h) + 14px); }
   .share-prev { width: 150px; left: 8px; bottom: calc(var(--ctrl-h) + 14px); }
@@ -621,4 +673,5 @@ span.field-note { font-size: 0.72rem; color: var(--faint); margin-top: -10px; }
   .screen-banner { top: 48px; }
   .room-tag { display: none; }
   .scr-q-btn { height: 36px !important; padding: 0 10px !important; font-size: 0.65rem !important; }
+  .vol-wrap { bottom: 110px; }
 }

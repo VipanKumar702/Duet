@@ -40,6 +40,7 @@
         <small id="localOffName">You</small>
       </div>
       <div class="cam-label pip-label"><span id="localName">You</span></div>
+      <div class="pip-resize-handle" id="pipResizeHandle"></div>
     </div>
 
     <div id="sharePrev" class="share-prev">
@@ -51,7 +52,7 @@
   <!-- ============================================================ -->
   <!--  TOP BAR                                                      -->
   <!-- ============================================================ -->
-  <header class="topbar">
+  <header class="topbar" id="topbar">
     <div class="top-left">
       <div class="logo-sm"><span>D</span></div>
       <span class="room-tag">Room <b id="roomCode"></b></span>
@@ -63,6 +64,7 @@
         <i id="connDot"></i>
         <span id="connLabel">Connecting</span>
       </div>
+      <button id="hideBarBtn" class="top-btn compact" title="Hide top bar"><i data-lucide="chevron-up"></i></button>
     </div>
   </header>
 

@@ -40,7 +40,7 @@
     camQ: $('camQ'), scrQ: $('scrQ'), applySet: $('applySet'), closeSet: $('closeSet'),
     overlay: $('joinOverlay'), ovTitle: $('ovTitle'), ovSub: $('ovSub'),
     ovCodeWrap: $('ovCodeWrap'), ovCode: $('ovCode'), ovCopy: $('ovCopy'), ovAction: $('ovAction'),
-    toastRoot: $('toastRoot'),
+    topbar: $('topbar'), toastRoot: $('toastRoot'),
   };
 
   const state = {
@@ -76,6 +76,8 @@
     lastPing: null,
     diagPrev: { framesRecv: 0, framesSend: 0, bytesRecv: 0, bytesSend: 0, lastTs: 0 },
     leaving: false,
+    remoteVolume: 0.5,
+    barHidden: false,
   };
 
   const REACTIONS = ['❤️', '😂', '😮', '🔥', '👏', '😍', '😎', '💯', '🎉', '🤩'];
@@ -103,7 +105,19 @@
   function attachVideo(video, stream) {
     if (video.srcObject === stream) return;
     video.srcObject = stream;
-    if (stream) video.play().catch(() => {});
+    if (stream) {
+      video.play().catch(() => {
+        const retry = () => { video.play().catch(() => {}); document.removeEventListener('pointerdown', retry); };
+        document.addEventListener('pointerdown', retry, { once: true });
+      });
+    }
+  }
+
+  function setRemoteVolume(val) {
+    const v = Math.max(0, Math.min(1, val));
+    state.remoteVolume = v;
+    if (els.remoteCam) els.remoteCam.volume = v;
+    if (els.shareView) els.shareView.volume = v;
   }
 
   function applyLocalEnabled() {
@@ -199,7 +213,7 @@
         if (!s || typeof s.getParameters !== 'function') return;
         try {
           const p = s.getParameters() || {};
-          if (p.degradationPreference !== undefined) p.degradationPreference = 'maintain-resolution';
+          if (p.degradationPreference !== undefined) p.degradationPreference = 'balance';
           if (p.encodings) p.encodings.forEach(e => { e.maxBitrate = bitrate; });
           s.setParameters(p).catch(() => {});
         } catch (e) { /* ignore */ }
@@ -335,6 +349,7 @@
       call.on('stream', s => {
         state.remoteScreenStream = s;
         attachVideo(els.shareView, s);
+        els.shareView.volume = state.remoteVolume;
         s.getAudioTracks().forEach(t => { t.enabled = state.hearSysAudio; });
         els.shareView.style.display = 'block';
         els.shareTag.style.display = 'flex';
@@ -371,6 +386,7 @@
     call.on('stream', s => {
       state.remoteCamStream = s;
       attachVideo(els.remoteCam, s);
+      els.remoteCam.volume = state.remoteVolume;
       els.remoteOff.classList.add('hidden');
       refreshStatusFromTracks(s);
       updateLayout();
@@ -380,7 +396,10 @@
       if (state.mediaCall === call) state.mediaCall = null;
       if (!state.remoteScreenStream) onPartnerGone();
     });
-    call.on('error', e => log('media error', e));
+    call.on('error', e => {
+      log('media error', e);
+      if (state.mediaCall === call) state.mediaCall = null;
+    });
   }
 
   function refreshStatusFromTracks(stream) {
@@ -429,7 +448,7 @@
     if (!state.dataReady || !state.dataConn) { toast('Wait for your partner to connect'); return; }
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { cursor: 'always', width: { max: 3840 }, height: { max: 2160 }, frameRate: { ideal: 60, max: 120 } },
+        video: { cursor: 'always', width: { max: 3840 }, height: { max: 2160 }, frameRate: { ideal: 30, max: 60 } },
         audio: { suppressLocalAudioPlayback: false, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
         preferCurrentTab: false,
         selfBrowserSurface: 'exclude',
@@ -446,9 +465,9 @@
       attachVideo(els.sharePrevVideo, stream);
       const call = state.peer.call(state.dataConn.peer, stream, { metadata: { type: 'screen' } });
       state.screenCallLocal = call;
-      call.on('error', e => log('local share error', e));
-      call.on('close', () => stopScreenShare());
-      stream.getVideoTracks()[0].addEventListener('ended', () => stopScreenShare());
+      call.on('error', e => { log('local share error', e); stopScreenShare(); });
+      call.on('close', () => { if (state.sharing) stopScreenShare(); });
+      stream.getVideoTracks()[0].addEventListener('ended', () => { if (state.sharing) stopScreenShare(); });
       els.shareBtn.classList.add('on');
       els.shareBadge.classList.add('show');
       updateLayout();
@@ -465,9 +484,9 @@
 
   function stopScreenShare() {
     if (!state.sharing) return;
-    if (state.screenCallLocal) { try { state.screenCallLocal.close(); } catch (e) { /* ignore */ } state.screenCallLocal = null; }
-    if (state.localScreenStream) { state.localScreenStream.getTracks().forEach(t => t.stop()); state.localScreenStream = null; }
     state.sharing = false;
+    if (state.screenCallLocal) { try { state.screenCallLocal.close(); } catch (e) { /* ignore */ } state.screenCallLocal = null; }
+    if (state.localScreenStream) { state.localScreenStream.getTracks().forEach(t => { try { t.stop(); } catch (e) { /* ignore */ } }); state.localScreenStream = null; }
     els.sharePrevVideo.srcObject = null;
     els.shareBtn.classList.remove('on');
     els.shareBadge.classList.remove('show');
@@ -1063,6 +1082,125 @@
   }
 
   /* ===================================================== */
+  /*  PiP drag + resize                                    */
+  /* ===================================================== */
+  function initPipDragResize() {
+    const pip = els.pip;
+    const handle = document.getElementById('pipResizeHandle');
+    if (!pip || !handle) return;
+
+    let isDragging = false, isResizing = false;
+    let startX, startY, startLeft, startTop, startW, startH;
+    const MIN_W = 100, MAX_W = 500;
+
+    function onPointerDown(e) {
+      if (e.target === handle) {
+        isResizing = true;
+        startX = e.clientX; startY = e.clientY;
+        const r = pip.getBoundingClientRect();
+        startW = r.width; startH = r.height;
+      } else if (e.target.closest('.pip') && !e.target.closest('.cam-label') && !e.target.closest('.pip-resize-handle')) {
+        isDragging = true;
+        pip.classList.add('dragging');
+        startX = e.clientX; startY = e.clientY;
+        const r = pip.getBoundingClientRect();
+        startLeft = r.left; startTop = r.top;
+      }
+      if (isDragging || isResizing) {
+        e.preventDefault();
+        document.addEventListener('pointermove', onPointerMove);
+        document.addEventListener('pointerup', onPointerUp);
+      }
+    }
+
+    function onPointerMove(e) {
+      if (isDragging) {
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        pip.style.right = 'auto';
+        pip.style.left = Math.max(0, Math.min(window.innerWidth - pip.offsetWidth, startLeft + dx)) + 'px';
+        pip.style.top = Math.max(0, Math.min(window.innerHeight - pip.offsetHeight, startTop + dy)) + 'px';
+        pip.style.bottom = 'auto';
+      } else if (isResizing) {
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        const newW = Math.max(MIN_W, Math.min(MAX_W, startW + dx));
+        const newH = newW * (9 / 16);
+        pip.style.width = newW + 'px';
+        pip.style.height = newH + 'px';
+        pip.style.aspectRatio = 'auto';
+      }
+    }
+
+    function onPointerUp() {
+      isDragging = false;
+      isResizing = false;
+      pip.classList.remove('dragging');
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerUp);
+    }
+
+    pip.addEventListener('pointerdown', onPointerDown);
+  }
+
+  /* ===================================================== */
+  /*  Volume control                                       */
+  /* ===================================================== */
+  function initVolumeControl() {
+    const wrap = document.createElement('div');
+    wrap.className = 'vol-wrap';
+    wrap.id = 'volWrap';
+    wrap.innerHTML = '<i data-lucide="volume-2"></i><input type="range" id="volSlider" min="0" max="1" step="0.05" value="0.5"/>';
+    document.getElementById('app').appendChild(wrap);
+    initIcons();
+
+    const slider = document.getElementById('volSlider');
+    if (slider) {
+      slider.value = state.remoteVolume;
+      slider.addEventListener('input', () => setRemoteVolume(parseFloat(slider.value)));
+    }
+
+    els.camBtn.addEventListener('dblclick', () => {
+      wrap.classList.toggle('show');
+    });
+  }
+
+  /* ===================================================== */
+  /*  Top bar hide / show                                  */
+  /* ===================================================== */
+  function initTopBarHide() {
+    const topbar = document.getElementById('topbar');
+    const btn = document.getElementById('hideBarBtn');
+    if (!topbar || !btn) return;
+
+    btn.addEventListener('click', () => {
+      state.barHidden = !state.barHidden;
+      if (state.barHidden) {
+        topbar.classList.remove('show-mode');
+        topbar.classList.add('hide-mode');
+        btn.classList.add('collapsed');
+      } else {
+        topbar.classList.remove('hide-mode');
+        topbar.classList.add('show-mode');
+        btn.classList.remove('collapsed');
+      }
+    });
+
+    topbar.addEventListener('mouseenter', () => {
+      if (state.barHidden) {
+        topbar.classList.remove('hide-mode');
+        topbar.classList.add('show-mode');
+      }
+    });
+    topbar.addEventListener('mouseleave', () => {
+      if (state.barHidden) {
+        topbar.classList.remove('show-mode');
+        topbar.classList.add('hide-mode');
+      }
+    });
+  }
+
+  /* ===================================================== */
   /*  Init                                                 */
   /* ===================================================== */
   function init() {
@@ -1071,6 +1209,9 @@
     buildSettingsSelects();
     buildReactions();
     bind();
+    initPipDragResize();
+    initVolumeControl();
+    initTopBarHide();
 
     document.title = 'Duet · ' + ROOM;
     els.roomCode.textContent = ROOM;
@@ -1092,8 +1233,8 @@
     initLocalMedia();
     initPeer();
 
-    setInterval(collectStats, 2000);
-    setInterval(sendPing, 5000);
+    setInterval(collectStats, 4000);
+    setInterval(sendPing, 10000);
   }
 
   init();

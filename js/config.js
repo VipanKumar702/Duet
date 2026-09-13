@@ -18,18 +18,18 @@ const DUET_CONFIG = {
   camera: {
     '720': {
       label: '720p',
-      video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60, min: 24 } },
-      bitrate: 2_000_000,
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } },
+      bitrate: 1_200_000,
     },
     '1080': {
       label: '1080p',
-      video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60, min: 24 } },
-      bitrate: 4_000_000,
+      video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30, max: 30 } },
+      bitrate: 2_500_000,
     },
     '1440': {
       label: '1440p',
-      video: { width: { ideal: 2560 }, height: { ideal: 1440 }, frameRate: { ideal: 60, min: 24 } },
-      bitrate: 6_500_000,
+      video: { width: { ideal: 2560 }, height: { ideal: 1440 }, frameRate: { ideal: 24, max: 24 } },
+      bitrate: 4_000_000,
     },
   },
 
@@ -42,17 +42,17 @@ const DUET_CONFIG = {
     '1080': {
       label: '1080p',
       video: {},
-      bitrate: 6_500_000,
+      bitrate: 3_500_000,
     },
     '1440': {
       label: '1440p',
       video: {},
-      bitrate: 9_000_000,
+      bitrate: 5_000_000,
     },
     '4k': {
       label: '4K',
       video: {},
-      bitrate: 18_000_000,
+      bitrate: 8_000_000,
     },
   },
 
