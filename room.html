@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#070818"/>
+<title>Duet · Room</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml"/>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body class="room">
+<div id="app">
+  <!-- ============================================================ -->
+  <!--  STAGE  — video layout                                        -->
+  <!-- ============================================================ -->
+  <div class="stage" id="stage">
+    <div id="mainStage" class="main-stage">
+      <video id="remoteCam" autoplay playsinline></video>
+      <div id="remoteOff" class="off-avatar">
+        <span id="remoteAvatar">?</span>
+        <small id="remoteOffName">Partner</small>
+      </div>
+      <div class="cam-label">
+        <div id="remoteName">Partner</div>
+        <div id="remoteBadges">
+          <span data-b="cam"><i data-lucide="video-off"></i></span>
+          <span data-b="mic"><i data-lucide="mic-off"></i></span>
+        </div>
+      </div>
+      <video id="shareView" autoplay playsinline></video>
+      <div id="shareTag" class="share-tag" style="display:none">
+        <span class="dot"></span> Partner is presenting
+      </div>
+    </div>
+
+    <div id="pip" class="pip">
+      <video id="localCam" autoplay playsinline muted></video>
+      <div id="localOff" class="off-avatar hidden">
+        <span id="localAvatar">?</span>
+        <small id="localOffName">You</small>
+      </div>
+      <div class="cam-label pip-label"><span id="localName">You</span></div>
+    </div>
+
+    <div id="sharePrev" class="share-prev">
+      <video id="sharePrevVideo" autoplay playsinline muted></video>
+      <div class="share-prev-tag">You're presenting</div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!--  TOP BAR                                                      -->
+  <!-- ============================================================ -->
+  <header class="topbar">
+    <div class="top-left">
+      <div class="logo-sm"><span>D</span></div>
+      <span class="room-tag">Room <b id="roomCode"></b></span>
+      <button id="copyCodeTop" class="top-btn" title="Copy room code"><i data-lucide="copy"></i></button>
+    </div>
+    <div class="top-right">
+      <span id="timer" class="timer">00:00</span>
+      <div id="connChip" class="connChip" data-state="pending">
+        <i id="connDot"></i>
+        <span id="connLabel">Connecting</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================================================ -->
+  <!--  SCREEN SHARE BANNER                                          -->
+  <!-- ============================================================ -->
+  <div id="screenBanner" class="screen-banner">
+    <span class="dot"></span>
+    <span>Sharing screen</span>
+    <button id="screenBannerStop" class="btn-xs danger">Stop</button>
+  </div>
+
+  <!-- ============================================================ -->
+  <!--  DIAGNOSTICS HUD                                              -->
+  <!-- ============================================================ -->
+  <div id="diagHud" class="diag-hud">
+    <button id="diagToggle" class="top-btn compact" title="Connection diagnostics"><i data-lucide="activity"></i><span id="diagLabel">--</span></button>
+    <div id="diagPanel" class="diag-panel" style="display:none">
+      <div class="diag-title">Connection Health</div>
+      <div class="diag-row"><span class="diag-key">Latency</span><span id="dLatency">-- ms</span></div>
+      <div class="diag-row"><span class="diag-key">Packet loss</span><span id="dPktLoss">--%</span></div>
+      <div class="diag-row"><span class="diag-key">FPS (recv)</span><span id="dFpsRecv">--</span></div>
+      <div class="diag-row"><span class="diag-key">FPS (send)</span><span id="dFpsSend">--</span></div>
+      <div class="diag-row"><span class="diag-key">Resolution</span><span id="dRes">--</span></div>
+      <div class="diag-row"><span class="diag-key">Codec</span><span id="dCodec">--</span></div>
+      <div class="diag-row"><span class="diag-key">Bitrate (recv)</span><span id="dBitRecv">--</span></div>
+      <div class="diag-row"><span class="diag-key">Bitrate (send)</span><span id="dBitSend">--</span></div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!--  CONTROL BAR                                                  -->
+  <!-- ============================================================ -->
+  <div class="ctrl-wrap">
+    <div id="reactPop" class="react-pop"></div>
+    <div class="ctrl-bar">
+      <div class="ctrl-left">
+        <button id="micBtn" class="cbtn" title="Toggle microphone">
+          <span class="i-on"><i data-lucide="mic"></i></span>
+          <span class="i-off"><i data-lucide="mic-off"></i></span>
+        </button>
+        <button id="camBtn" class="cbtn" title="Toggle camera">
+          <span class="i-on"><i data-lucide="video"></i></span>
+          <span class="i-off"><i data-lucide="video-off"></i></span>
+        </button>
+        <button id="shareBtn" class="cbtn" title="Share screen">
+          <i data-lucide="monitor-up"></i>
+          <span id="shareBadge" class="badge-dot"></span>
+        </button>
+        <div id="scCtl" class="sc-ctl">
+          <button id="scSend" class="sc-btn" title="Send system audio with screen">
+            <i data-lucide="music"></i>
+            <span id="scSendLbl">Send sound</span>
+          </button>
+          <button id="scHear" class="sc-btn" title="Hear partner's system audio">
+            <i data-lucide="volume-2"></i>
+            <span id="scHearLbl">Hear sound</span>
+          </button>
+        </div>
+      </div>
+      <div class="ctrl-right">
+        <button id="reactBtn" class="cbtn" title="Reactions"><i data-lucide="sparkles"></i></button>
+        <button id="chatBtn" class="cbtn" title="Chat">
+          <i data-lucide="messages-square"></i>
+          <span id="chatCount" class="badge-num">0</span>
+        </button>
+        <button id="pipBtn" class="cbtn" title="Picture-in-Picture"><i data-lucide="picture-in-picture-2"></i></button>
+        <button id="moreBtn" class="cbtn" title="Settings"><i data-lucide="settings"></i></button>
+        <button id="leaveBtn" class="cbtn danger" title="Leave call">
+          <i data-lucide="phone"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!--  CHAT PANEL                                                   -->
+  <!-- ============================================================ -->
+  <aside id="chatPanel" class="chat-panel">
+    <div class="chat-head">
+      <div>
+        <strong>Messages</strong>
+        <span id="typingInd">typing…</span>
+      </div>
+      <button id="chatClose" class="icon-btn"><i data-lucide="x"></i></button>
+    </div>
+    <div id="chatLog" class="chat-log"></div>
+    <form id="chatForm" class="chat-form">
+      <input id="chatInput" type="text" placeholder="Send a message…" maxlength="500" autocomplete="off"/>
+      <button id="chatSend" type="submit"><i data-lucide="send"></i></button>
+    </form>
+  </aside>
+
+  <!-- ============================================================ -->
+  <!--  SETTINGS MODAL                                               -->
+  <!-- ============================================================ -->
+  <div id="settingsModal" class="modal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3><i data-lucide="settings" class="ci"></i> Settings</h3>
+        <button id="closeSet" class="icon-btn"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <label class="field">
+          <span>Display name</span>
+          <input id="nameInput" type="text" maxlength="20" autocomplete="off"/>
+        </label>
+        <label class="field">
+          <span>Camera quality</span>
+          <select id="camQ"></select>
+        </label>
+        <label class="field">
+          <span>Screen share quality</span>
+          <select id="scrQ"></select>
+        </label>
+      </div>
+      <div class="modal-foot">
+        <button id="applySet" class="btn btn-primary">Apply & close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!--  OVERLAY (room status / errors)                               -->
+  <!-- ============================================================ -->
+  <div id="joinOverlay" class="overlay show">
+    <div class="overlay-card">
+      <div class="overlay-brand"><div class="logo"><span>D</span></div></div>
+      <h2 id="ovTitle">Initializing…</h2>
+      <p id="ovSub"></p>
+      <div id="ovCodeWrap" class="ov-code" style="display:none">
+        <span id="ovCode"></span>
+        <button id="ovCopy" class="icon-btn" title="Copy code"><i data-lucide="copy"></i></button>
+      </div>
+      <button id="ovAction" class="btn btn-ghost" style="display:none"></button>
+    </div>
+  </div>
+
+  <!-- Toasts -->
+  <div id="toastRoot"></div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/peerjs.min.js"></script>
+<script>window.Peer || document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"><\/script>');</script>
+<script src="js/room.js"></script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#070818"/>
+<meta name="description" content="Duet — ultra-private two-person video rooms. No signup. No login. Just a vault link."/>
+<title>Duet · Ultra-Private Two-Person Video Rooms</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml"/>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body class="home">
+<div class="bg-grid"></div>
+<div class="orb orb-a"></div>
+<div class="orb orb-b"></div>
+<div class="orb orb-c"></div>
+
+<nav class="nav">
+  <div class="nav-logo">
+    <div class="logo-sm"><span>D</span></div>
+    <span class="nav-name">Duet</span>
+  </div>
+  <div class="nav-right">
+    <span class="pill"><i class="dot ok"></i>No signup · No login</span>
+  </div>
+</nav>
+
+<main class="home-wrap">
+  <header class="hero">
+    <div class="hero-badge" id="heroBadge">
+      <span class="b-icon"><i data-lucide="shield-check" class="icon"></i></span>
+      Private two-person rooms
+    </div>
+    <h1>Meet one person.<br/>Keep <span class="grad-text">everybody else</span> out.</h1>
+    <p class="hero-sub">
+      Ultra-private video rooms that connect two people over a direct peer-to-peer link.
+      Create a vault link, share the 6-character token, and everything — video, system audio,
+      screen, chat — travels straight between your browsers. Zero servers in the path.
+    </p>
+
+    <section class="panel vault-card">
+      <div class="vault-img">
+        <video id="vaultCam" class="hidden" autoplay playsinline muted></video>
+        <div id="vaultGhost" class="vault-ghost">
+          <div class="vault-rings"><i data-lucide="video" class="icon"></i></div>
+          <span>Camera preview</span>
+        </div>
+        <span class="dot-chip live" id="vaultCamChip" style="display:none">Previewing you</span>
+      </div>
+      <div class="vault-body">
+        <h2>Initialize a vault link</h2>
+        <p class="panel-sub">
+          Generates a unique 6-character token. Send it to exactly one person.
+        </p>
+        <label class="field">
+          <span>Your name</span>
+          <input id="nameInput" type="text" maxlength="20" placeholder="Anonymous" autocomplete="off"/>
+        </label>
+        <button id="createBtn" class="btn btn-primary btn-block">
+          <i data-lucide="link-2" class="icon"></i> Initialize vault link
+        </button>
+        <div class="vault-note">
+          <i data-lucide="info" class="icon"></i>
+          <span>You'll get a token like <b id="sampleCode">X7Y2Z9</b> — only you and one guest can enter.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel join-card">
+      <h2>Join a room</h2>
+      <p class="panel-sub">Enter the 6-character token your partner shared.</p>
+      <div class="join-row">
+        <input id="codeInput" type="text" maxlength="6" placeholder="ABCDEF" autocomplete="off" spellcheck="false"/>
+        <button id="joinBtn" class="btn btn-ghost">
+          <i data-lucide="log-in" class="icon"></i> Join
+        </button>
+      </div>
+    </section>
+
+    <div class="feature-row">
+      <div class="f-item">
+        <i data-lucide="film" class="icon accent1"></i>
+        <b>1080p / 60fps calling</b>
+        <span>VP9 codec with adaptive bandwidth control</span>
+      </div>
+      <div class="f-item">
+        <i data-lucide="speaker" class="icon accent2"></i>
+        <b>Stereo system audio</b>
+        <span>Share screen sound on a separate channel, or mute your mic to let it sing</span>
+      </div>
+      <div class="f-item">
+        <i data-lucide="gauge" class="icon accent1"></i>
+        <b>Live diagnostics</b>
+        <span>Latency, packet loss and FPS right on screen</span>
+      </div>
+      <div class="f-item">
+        <i data-lucide="picture-in-picture-2" class="icon accent2"></i>
+        <b>Native PiP</b>
+        <span>Pop any stream into a floating always-on-top window</span>
+      </div>
+    </div>
+  </header>
+
+  <footer class="foot">
+    <p>
+      Peer-to-peer over WebRTC · Signaling via public broker · Standard DTLS + SRTP encryption
+    </p>
+    <p class="foot-sub">
+      Best in Chrome or Edge on desktop. A third join attempt to any room is auto-deflected.
+    </p>
+  </footer>
+</main>
+
+<script src="js/config.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
