@@ -17,37 +17,42 @@ const DUET_CONFIG = {
 
   camera: {
     '720': {
-      label: '720p · Balanced',
+      label: '720p',
       video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60, min: 24 } },
       bitrate: 2_000_000,
     },
     '1080': {
-      label: '1080p · High',
+      label: '1080p',
       video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60, min: 24 } },
       bitrate: 4_000_000,
     },
     '1440': {
-      label: '1440p · Ultra',
+      label: '1440p',
       video: { width: { ideal: 2560 }, height: { ideal: 1440 }, frameRate: { ideal: 60, min: 24 } },
       bitrate: 6_500_000,
     },
   },
 
   screen: {
+    'auto': {
+      label: 'Auto (native)',
+      video: {},
+      bitrate: 0,
+    },
     '1080': {
-      label: '1080p · 60fps',
-      video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } },
+      label: '1080p',
+      video: {},
       bitrate: 6_500_000,
     },
     '1440': {
-      label: '1440p · 60fps',
-      video: { width: { ideal: 2560 }, height: { ideal: 1440 }, frameRate: { ideal: 60 } },
+      label: '1440p',
+      video: {},
       bitrate: 9_000_000,
     },
     '4k': {
-      label: '4K · 60fps',
-      video: { width: { ideal: 3840 }, height: { ideal: 2160 }, frameRate: { ideal: 60 } },
-      bitrate: 14_000_000,
+      label: '4K',
+      video: {},
+      bitrate: 18_000_000,
     },
   },
 

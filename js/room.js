@@ -23,6 +23,7 @@
     roomCode: $('roomCode'), copyCodeTop: $('copyCodeTop'), timer: $('timer'),
     connChip: $('connChip'), connDot: $('connDot'), connLabel: $('connLabel'),
     screenBanner: $('screenBanner'), screenBannerStop: $('screenBannerStop'),
+    scrQBtn: $('scrQBtn'), scrQLabel: $('scrQLabel'),
     diagToggle: $('diagToggle'), diagLabel: $('diagLabel'), diagPanel: $('diagPanel'),
     dLatency: $('dLatency'), dPktLoss: $('dPktLoss'), dFpsRecv: $('dFpsRecv'),
     dFpsSend: $('dFpsSend'), dRes: $('dRes'), dCodec: $('dCodec'),
@@ -208,8 +209,12 @@
 
   function applyBitrates() {
     if (state.mediaCall) applyBitratesToCall(state.mediaCall, CFG.camera[state.camQuality].bitrate);
-    if (state.screenCallLocal) applyBitratesToCall(state.screenCallLocal, CFG.screen[state.scrQuality].bitrate);
-    if (state.screenCallRemote) applyBitratesToCall(state.screenCallRemote, CFG.screen[state.scrQuality].bitrate);
+  }
+
+  function applyScreenBitrate() {
+    const cfg = CFG.screen[state.scrQuality] || CFG.screen['auto'];
+    const br = cfg.bitrate || 0;
+    if (state.screenCallLocal) applyBitratesToCall(state.screenCallLocal, br);
   }
 
   /* ===================================================== */
@@ -331,11 +336,11 @@
         state.remoteScreenStream = s;
         attachVideo(els.shareView, s);
         s.getAudioTracks().forEach(t => { t.enabled = state.hearSysAudio; });
-        els.shareView.style.display = '';
-        els.shareTag.style.display = '';
+        els.shareView.style.display = 'block';
+        els.shareTag.style.display = 'flex';
         updateLayout();
         renderScreenAudio();
-        applyBitrates();
+        applyScreenBitrate();
       });
       call.on('close', remoteScreenCleanup);
       call.on('error', e => log('screen call error', e));
@@ -396,10 +401,12 @@
   function updateLayout() {
     const pShare = !!state.remoteScreenStream;
     const meShare = state.sharing;
-    els.shareView.style.display = pShare ? '' : 'none';
-    els.shareTag.style.display = pShare ? '' : 'none';
-    els.sharePrev.style.display = meShare ? '' : 'none';
+    els.shareView.style.display = pShare ? 'block' : 'none';
+    els.shareTag.style.display = pShare ? 'flex' : 'none';
+    els.sharePrev.style.display = meShare ? 'block' : 'none';
     els.screenBanner.classList.toggle('show', meShare);
+    els.scrQBtn.style.display = (meShare || pShare) ? '' : 'none';
+    document.body.classList.toggle('sharing', meShare || pShare);
   }
 
   function renderScreenAudio() {
@@ -421,8 +428,15 @@
     if (state.sharing || state.leaving) return;
     if (!state.dataReady || !state.dataConn) { toast('Wait for your partner to connect'); return; }
     try {
-      const video = CFG.screen[state.scrQuality] ? CFG.screen[state.scrQuality].video : CFG.screen['1080'].video;
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video, audio: true });
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: 'always', width: { max: 3840 }, height: { max: 2160 }, frameRate: { ideal: 60, max: 120 } },
+        audio: { suppressLocalAudioPlayback: false, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+        preferCurrentTab: false,
+        selfBrowserSurface: 'exclude',
+        systemAudio: 'include',
+        surfaceSwitching: 'include',
+        monitorTypeSurfaces: 'include',
+      });
       if (!stream || stream.getVideoTracks().length === 0) return;
       state.localScreenStream = stream;
       state.sharing = true;
@@ -439,9 +453,9 @@
       els.shareBadge.classList.add('show');
       updateLayout();
       renderScreenAudio();
-      applyBitrates();
+      applyScreenBitrate();
       send({ type: 'ctrl', action: 'share-on' });
-      toast('Presenting — system audio ' + (hasAud ? 'included' : 'unavailable in this browser'));
+      toast('Presenting — system audio ' + (hasAud ? 'included' : 'check "Share audio" in picker'));
     } catch (e) {
       log('share cancelled', e);
       if (e && e.name === 'NotAllowedError') toast('Screen share cancelled');
@@ -916,6 +930,21 @@
       else startScreenShare().catch(() => {});
     });
 
+    els.scrQBtn.addEventListener('click', () => {
+      const keys = Object.keys(CFG.screen);
+      const idx = keys.indexOf(state.scrQuality);
+      state.scrQuality = keys[(idx + 1) % keys.length];
+      els.scrQLabel.textContent = CFG.screen[state.scrQuality].label;
+      if (els.scrQ.value !== state.scrQuality) els.scrQ.value = state.scrQuality;
+      if (state.sharing) {
+        stopScreenShare();
+        defer(() => startScreenShare().catch(() => {}));
+      } else if (state.remoteScreenStream) {
+        applyScreenBitrate();
+      }
+      toast('Screen quality: ' + CFG.screen[state.scrQuality].label);
+    });
+
     els.screenBannerStop.addEventListener('click', () => stopScreenShare());
 
     els.scSend.addEventListener('click', () => {
@@ -1025,8 +1054,9 @@
     }
     if (els.scrQ.value !== state.scrQuality) {
       state.scrQuality = els.scrQ.value;
+      els.scrQLabel.textContent = CFG.screen[state.scrQuality].label;
       if (state.sharing) { stopScreenShare(); defer(() => startScreenShare().catch(() => {})); }
-      else if (state.remoteScreenStream) applyBitrates();
+      else if (state.remoteScreenStream) applyScreenBitrate();
     }
     els.settingsModal.classList.remove('show');
     toast('Settings applied');
@@ -1047,6 +1077,7 @@
     els.localName.textContent = state.name;
     els.localOffName.textContent = state.name;
     els.localAvatar.textContent = state.name.charAt(0).toUpperCase();
+    els.scrQLabel.textContent = CFG.screen[state.scrQuality].label;
 
     if (IS_HOST) {
       showOverlay({

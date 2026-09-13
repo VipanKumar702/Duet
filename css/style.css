@@ -320,6 +320,15 @@ body.room #app { width: 100%; height: 100%; position: relative; }
   border-radius: 999px; pointer-events: none; backdrop-filter: blur(4px);
 }
 
+/* Screen quality badge */
+.scr-q-btn {
+  width: auto !important; height: 36px !important; padding: 0 12px !important;
+  border-radius: 999px !important; font-size: 0.7rem !important; font-weight: 700 !important;
+  letter-spacing: 0.04em; background: rgba(124, 108, 255, 0.18) !important;
+  border: 1px solid rgba(124, 108, 255, 0.35) !important; color: var(--acc1) !important;
+}
+.scr-q-btn:hover { background: rgba(124, 108, 255, 0.28) !important; }
+
 /* Overflow hidden videos inside boxes */
 .main-stage video, .pip video, .share-prev video { object-fit: contain; }
 
@@ -601,8 +610,9 @@ span.field-note { font-size: 0.72rem; color: var(--faint); margin-top: -10px; }
   .share-prev { width: 150px; left: 8px; bottom: calc(var(--ctrl-h) + 14px); }
   .cbtn { width: 46px; height: 46px; border-radius: 13px; }
   .cbtn .lucide { width: 20px; height: 20px; }
-  .ctrl-bar { padding: 8px 8px; gap: 4px; }
-  .ctrl-left, .ctrl-right { gap: 4px; }
+  .ctrl-bar { padding: 8px 10px; gap: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .ctrl-bar::-webkit-scrollbar { display: none; }
+  .ctrl-left, .ctrl-right { gap: 5px; flex-shrink: 0; }
   .sc-btn span { display: none; }
   .sc-btn { padding: 7px; }
   .chat-panel { width: 100%; }
@@ -610,4 +620,5 @@ span.field-note { font-size: 0.72rem; color: var(--faint); margin-top: -10px; }
   .diag-panel { left: auto; right: 0; transform: none; }
   .screen-banner { top: 48px; }
   .room-tag { display: none; }
+  .scr-q-btn { height: 36px !important; padding: 0 10px !important; font-size: 0.65rem !important; }
 }
