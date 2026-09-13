@@ -104,12 +104,13 @@
 
   function attachVideo(video, stream) {
     if (!video || !stream) return;
+    const shouldMute = (video.id === 'localCam' || video.id === 'sharePrevVideo');
     if (video.srcObject === stream && !video.paused) return;
     video.srcObject = stream;
     video.muted = true;
     video.load();
     video.play().then(() => {
-      if (video.id !== 'localCam') video.muted = false;
+      video.muted = shouldMute;
     }).catch(e => {
       log('autoplay blocked on', video.id, e.message);
     });
@@ -311,34 +312,80 @@
   }
 
   /* ===================================================== */
-  /*  Peer init / signaling (PeerJS public broker)         */
+  /*  Peer init / signaling (PeerJS)                       */
   /* ===================================================== */
+  const PEER_SERVERS = [
+    { host: '0.peerjs.com', port: 443, path: '/', secure: true },
+    { host: '1.peerjs.com', port: 443, path: '/', secure: true },
+    { host: '2.peerjs.com', port: 443, path: '/', secure: true },
+  ];
+
   function initPeer() {
     if (!window.Peer) {
       showOverlay({ title: 'Signaling library missing', sub: 'PeerJS could not be loaded (offline?).', action: 'Reload' });
       els.ovAction.onclick = () => location.reload();
       return;
     }
-    const sig = CFG.signaling || {};
-    const peerOpts = { debug: 1 };
-    if (sig && sig.host) {
-      peerOpts.host = sig.host;
-      peerOpts.port = sig.port || 443;
-      peerOpts.path = sig.path || '/';
-      peerOpts.secure = sig.secure !== false;
-      peerOpts.key = sig.key || 'peerjs';
+    tryCreatePeer(0);
+  }
+
+  function tryCreatePeer(attempt) {
+    if (attempt >= PEER_SERVERS.length) {
+      showOverlay({ title: 'Cannot connect to signaling server', sub: 'All servers unreachable. Check your internet.', action: 'Retry' });
+      els.ovAction.onclick = () => { hideOverlay(); tryCreatePeer(0); };
+      return;
     }
-    state.peer = new Peer(IS_HOST ? ROOM : undefined, peerOpts);
-    state.peer.on('open', id => log('peer open', id));
-    if (IS_HOST) state.peer.on('connection', onHostConnection);
-    else state.peer.on('open', () => {
-      const conn = state.peer.connect(ROOM, { reliable: true });
-      wireData(conn);
+    const srv = PEER_SERVERS[attempt];
+    log('trying peer server', srv.host);
+    const peerOpts = { debug: 0, ...srv, key: 'peerjs' };
+    let peer;
+    try {
+      peer = new Peer(IS_HOST ? ROOM : undefined, peerOpts);
+    } catch (e) {
+      log('peer constructor failed', e);
+      tryCreatePeer(attempt + 1);
+      return;
+    }
+    state.peer = peer;
+
+    const failTimer = setTimeout(() => {
+      if (!state.dataReady) {
+        log('peer server timeout', srv.host);
+        try { peer.destroy(); } catch (e) { /* ignore */ }
+        tryCreatePeer(attempt + 1);
+      }
+    }, 8000);
+
+    peer.on('open', id => {
+      clearTimeout(failTimer);
+      log('peer open on', srv.host, 'id:', id);
+      if (IS_HOST) {
+        peer.on('connection', onHostConnection);
+      } else {
+        const conn = peer.connect(ROOM, { reliable: true });
+        wireData(conn);
+      }
     });
-    state.peer.on('call', onIncomingCall);
-    state.peer.on('error', onPeerError);
-    state.peer.on('disconnected', () => {
-      if (state.dataReady) { log('peer server disconnect'); try { state.peer.reconnect(); } catch (e) { /* ignore */ } }
+    peer.on('call', onIncomingCall);
+    peer.on('error', e => {
+      log('peer error on', srv.host, e.type);
+      if (e.type === 'unavailable-id' || e.type === 'peer-unavailable') {
+        clearTimeout(failTimer);
+        onPeerError(e);
+      } else if (e.type === 'network' || e.type === 'server-error') {
+        clearTimeout(failTimer);
+        try { peer.destroy(); } catch (ex) { /* ignore */ }
+        tryCreatePeer(attempt + 1);
+      }
+    });
+    peer.on('disconnected', () => {
+      if (state.dataReady) {
+        log('peer disconnected, reconnecting');
+        try { peer.reconnect(); } catch (e) { /* ignore */ }
+      }
+    });
+    peer.on('close', () => {
+      log('peer closed');
     });
   }
 
@@ -536,7 +583,10 @@
       const hasAud = stream.getAudioTracks().length > 0;
       state.sendSysAudio = hasAud;
       stream.getAudioTracks().forEach(t => { t.enabled = state.sendSysAudio; });
-      attachVideo(els.sharePrevVideo, stream);
+      els.sharePrevVideo.srcObject = null;
+      els.sharePrevVideo.srcObject = stream;
+      els.sharePrevVideo.muted = true;
+      els.sharePrevVideo.volume = 0;
       const call = state.peer.call(state.dataConn.peer, stream, { metadata: { type: 'screen' } });
       state.screenCallLocal = call;
       call.on('error', e => { log('local share error', e); stopScreenShare(); });
@@ -1126,10 +1176,12 @@
     });
 
     const autoplayUnlock = () => {
-      [els.remoteCam, els.shareView, els.localCam].forEach(v => {
-        if (v && v.srcObject) {
+      [els.remoteCam, els.shareView].forEach(v => {
+        if (v && v.srcObject && v.paused) {
           v.muted = true;
-          v.play().then(() => { v.muted = (v.id === 'localCam'); }).catch(() => {});
+          v.play().then(() => {
+            if (v.id === 'remoteCam' || v.id === 'shareView') v.muted = false;
+          }).catch(() => {});
         }
       });
     };
