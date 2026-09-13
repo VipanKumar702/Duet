@@ -658,20 +658,32 @@ span.field-note { font-size: 0.72rem; color: var(--faint); margin-top: -10px; }
 }
 
 @media (max-width: 760px) {
-  .pip { width: 116px; right: 8px; bottom: calc(var(--ctrl-h) + 14px); }
-  .share-prev { width: 150px; left: 8px; bottom: calc(var(--ctrl-h) + 14px); }
-  .cbtn { width: 46px; height: 46px; border-radius: 13px; }
+  .pip { width: 120px; right: 8px; bottom: calc(var(--ctrl-h) + 14px); }
+  .share-prev { width: 140px; left: 8px; bottom: calc(var(--ctrl-h) + 14px); }
+  .cbtn { width: 44px; height: 44px; border-radius: 13px; }
   .cbtn .lucide { width: 20px; height: 20px; }
-  .ctrl-bar { padding: 8px 10px; gap: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .ctrl-bar { padding: 6px 8px; gap: 3px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .ctrl-bar::-webkit-scrollbar { display: none; }
-  .ctrl-left, .ctrl-right { gap: 5px; flex-shrink: 0; }
+  .ctrl-left, .ctrl-right { gap: 4px; flex-shrink: 0; }
   .sc-btn span { display: none; }
-  .sc-btn { padding: 7px; }
+  .sc-btn { padding: 6px 8px; font-size: 0.68rem; }
   .chat-panel { width: 100%; }
-  .diag-hud { left: auto; right: 50px; top: 54px; transform: none; }
+  .diag-hud { left: auto; right: 8px; top: 48px; transform: none; }
   .diag-panel { left: auto; right: 0; transform: none; }
-  .screen-banner { top: 48px; }
+  .screen-banner { top: 44px; font-size: 0.72rem; }
   .room-tag { display: none; }
-  .scr-q-btn { height: 36px !important; padding: 0 10px !important; font-size: 0.65rem !important; }
+  .scr-q-btn { height: 32px !important; padding: 0 8px !important; font-size: 0.62rem !important; }
   .vol-wrap { bottom: 110px; }
+  .topbar { padding: 6px 8px; }
+  .logo-sm { width: 28px; height: 28px; font-size: 13px; border-radius: 8px; }
+  .timer, .connChip { font-size: 0.65rem; padding: 4px 7px; }
+  .top-btn { padding: 5px 7px; font-size: 0.68rem; }
+  .cam-label { font-size: 0.7rem; padding: 3px 8px; bottom: 6px; left: 8px; }
+  .off-avatar span { width: 60px; height: 60px; font-size: 1.5rem; }
+  .off-avatar small { font-size: 0.75rem; }
+  .modal-card { width: 95%; }
+  .react-pop { bottom: calc(var(--ctrl-h) + 14px); }
+  .r-btn { width: 40px; height: 40px; font-size: 1.3rem; }
+  .topbar.hide-mode ~ .ctrl-wrap .ctrl-bar { padding-bottom: 16px; }
+}
 }

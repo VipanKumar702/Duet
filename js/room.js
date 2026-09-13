@@ -188,7 +188,7 @@
   }
 
   function patchCodecs() {
-    const prefer = ['VP9', 'H264'];
+    const prefer = [CFG.preferredCodec || 'H264', 'VP8'];
     const origOffer = RTCPeerConnection.prototype.createOffer;
     const origAnswer = RTCPeerConnection.prototype.createAnswer;
     if (origOffer) {
@@ -357,12 +357,21 @@
   function wireData(conn) {
     state.dataConn = conn;
     conn.on('open', () => {
+      log('data channel open');
       state.dataReady = true;
       setConn('Live', 'live');
       hideOverlay();
       startTimer();
       send({ type: 'hello', name: state.name });
       maybeCall();
+      if (!state.mediaCall) {
+        setTimeout(() => {
+          if (!state.mediaCall && state.dataReady) {
+            log('retrying maybeCall after 2s');
+            maybeCall();
+          }
+        }, 2000);
+      }
     });
     conn.on('data', d => {
       let m = d;
@@ -374,14 +383,27 @@
   }
 
   function maybeCall() {
-    if (!state.dataReady || !state.dataConn || state.mediaCall) return;
-    if (!state.localStream) return;
+    if (!state.dataReady || !state.dataConn) return;
+    if (!state.localStream) { log('maybeCall: no localStream yet'); return; }
+    if (state.mediaCall) { log('maybeCall: already have mediaCall'); return; }
+    log('maybeCall: calling peer', state.dataConn.peer);
     const call = state.peer.call(state.dataConn.peer, state.localStream, { metadata: { type: 'cam' } });
+    if (!call) { log('maybeCall: peer.call returned null'); return; }
     state.mediaCall = call;
+    call.on('error', e => {
+      log('media call error', e);
+      state.mediaCall = null;
+      setTimeout(maybeCall, 2000);
+    });
+    call.on('close', () => {
+      log('media call closed');
+      state.mediaCall = null;
+    });
     wireMediaCall(call, 'cam');
   }
 
   function onIncomingCall(call) {
+    log('incoming call from', call.peer, 'type:', call.metadata && call.metadata.type);
     const kind = call.metadata && call.metadata.type === 'screen' ? 'screen' : 'cam';
     if (kind === 'screen') {
       call.answer();
@@ -403,7 +425,6 @@
     } else {
       state.pendingAnswer = { call, kind };
       answerPendingCall();
-      defer(() => answerPendingCall());
     }
   }
 
@@ -411,19 +432,23 @@
     const p = state.pendingAnswer;
     if (!p) return;
     const { call, kind } = p;
+    if (!state.localStream) {
+      log('answerPendingCall: no localStream, waiting…');
+      setTimeout(answerPendingCall, 500);
+      return;
+    }
     try {
-      const doAnswer = () => {
-        call.answer(state.localStream || undefined);
-        wireMediaCall(call, kind);
-        state.pendingAnswer = null;
-      };
-      if (state.localStream) doAnswer();
-      else defer(doAnswer);
+      log('answering call with stream');
+      call.answer(state.localStream);
+      wireMediaCall(call, kind);
+      state.pendingAnswer = null;
     } catch (e) { log('answer failed', e); }
   }
 
   function wireMediaCall(call, kind) {
+    let streamReceived = false;
     call.on('stream', s => {
+      streamReceived = true;
       log('got remote stream, tracks:', s.getTracks().map(t => t.kind + ':' + t.readyState).join(', '));
       state.remoteCamStream = s;
       attachVideo(els.remoteCam, s);
@@ -434,6 +459,7 @@
       applyBitrates();
     });
     call.on('close', () => {
+      log('media call closed');
       if (state.mediaCall === call) state.mediaCall = null;
       if (!state.remoteScreenStream) onPartnerGone();
     });
@@ -441,6 +467,13 @@
       log('media error', e);
       if (state.mediaCall === call) state.mediaCall = null;
     });
+    setTimeout(() => {
+      if (!streamReceived && call && !call.closed) {
+        log('no stream after 5s, retrying call');
+        if (state.mediaCall === call) state.mediaCall = null;
+        setTimeout(maybeCall, 1000);
+      }
+    }, 5000);
   }
 
   function refreshStatusFromTracks(stream) {
@@ -1105,6 +1138,17 @@
     attachPipUi(els.remoteCam, els.pipBtn);
     attachPipUi(els.shareView, els.pipBtn);
     attachPipUi(els.localCam, els.pipBtn);
+
+    const fsBtn = document.getElementById('fsBtn');
+    if (fsBtn) {
+      fsBtn.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(e => toast('Fullscreen not available'));
+        } else {
+          document.exitFullscreen();
+        }
+      });
+    }
   }
 
   function openSettings() {
